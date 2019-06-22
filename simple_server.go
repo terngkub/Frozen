@@ -5,6 +5,7 @@ import (
 	"log"
 	"net"
 	"os"
+	"strings"
 )
 
 const (
@@ -17,6 +18,12 @@ type Account struct {
 	Password string
 	User     string
 	Nickname string
+}
+
+type Channel struct {
+	Name     string
+	Topic    string
+	UserList []*Account
 }
 
 type Env struct {
@@ -75,6 +82,11 @@ func runSession(env *Env, conn net.Conn) {
 }
 
 func (session *Session) handleRequest(request string) {
+	switch {
+	case strings.Contains(request, "PRIVMSG"):
+		session.privateMSG(request)
+	}
+
 }
 
 func (session *Session) getRequest() (string, error) {
@@ -87,4 +99,36 @@ func (session *Session) getRequest() (string, error) {
 	requestStr := string(request[:len])
 	fmt.Println("<" + requestStr + ">")
 	return requestStr, nil
+}
+
+func (session *Session) privateMSG(request string) {
+	src_nick := session.Account.Nickname
+	src_user := session.Account.User
+	matches := doRegexpSubmatch("PRIVMSG (.*) :(.*)\r\n", request)
+	//if dst exists
+	var dst_nick string
+	if len(matches) > 0 {
+		for _, usr := range session.Env.AccountList {
+			fmt.Println("dst nick :", usr.Nickname)
+			if matches[1] == usr.Nickname {
+				dst_nick = usr.Nickname
+			}
+		}
+	}
+	//grab message
+	if len(request) > 1 {
+		i := strings.Index(request[1:], ":")
+		if i != 0 {
+			//:<nick>!<user>@<host> PRIVMSG dest :msg
+			msg := fmt.Sprintf(":%s!%s@%s PRIVMSG %s :%s", src_nick,
+				src_user,
+				CONN_HOST,
+				dst_nick,
+				request[i+1:])
+			//get dst's connexion
+			dst_conn := session.Env.ConnMap[dst_nick]
+			//send message from src to dst
+			dst_conn.Write([]byte(msg))
+		}
+	}
 }

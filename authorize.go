@@ -54,5 +54,6 @@ func (session *Session) authorize() error {
 	message := fmt.Sprintf(":%s %s %s %s\r\n", "127.0.0.1", "001", nick, ":Welcome to the Internet Relay Network")
 	fmt.Println(message)
 	session.Conn.Write([]byte(message))
+
 	return nil
 }
