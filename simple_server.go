@@ -70,7 +70,6 @@ func runSession(env *Env, conn net.Conn) {
 }
 
 func (session *Session) handleRequest(request string) {
-	// handle request here
 }
 
 func (session *Session) getRequest() string {
@@ -80,6 +79,6 @@ func (session *Session) getRequest() string {
 		log.Println("Error reading: ", err)
 	}
 	requestStr := string(request[:len])
-	fmt.Print(requestStr)
+	fmt.Println("<" + requestStr + ">")
 	return requestStr
 }
