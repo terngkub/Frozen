@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"regexp"
 )
 
 const (
@@ -11,6 +12,12 @@ const (
 	CONN_PORT = "3333"
 	CONN_TYPE = "tcp"
 )
+
+type Account struct {
+	Password string
+	User     string
+	Nickname string
+}
 
 func main() {
 	//args := os.Args[1:]
@@ -48,8 +55,22 @@ func handleRequest(conn net.Conn) {
 		if requestLen == 0 {
 			break
 		} else {
-			// parse here
-			conn.Write([]byte("Message recieved\n"))
+			responseMessage(conn, request)
 		}
+	}
+}
+
+func responseMessage(conn net.Conn, request []byte) {
+	requestStr := string(request)
+	PASS := regexp.MustCompile("PASS (.*)\r\n")
+	NICK := regexp.MustCompile("NICK (.*)\r\n")
+	USER := regexp.MustCompile("USER (.*)\r\n")
+	switch {
+	case PASS.MatchString(requestStr):
+		fmt.Println("match pass")
+	case NICK.MatchString(requestStr):
+		fmt.Println("match nick")
+	case USER.MatchString(requestStr):
+		fmt.Println("match user")
 	}
 }
