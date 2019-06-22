@@ -1,2 +1,0 @@
-# Frozen
-Go IRC Server
