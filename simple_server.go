@@ -21,15 +21,16 @@ type Account struct {
 }
 
 type Channel struct {
-	Name string
-	Topic string
+	Name     string
+	Topic    string
 	UserList []*Account
 }
 
 type Env struct {
 	AccountList []Account
-	UserList    map[string]*Account
-	ConnList    map[string]net.Conn
+	UserMap     map[string]*Account
+	NicknameMap map[string]*Account
+	ConnMap     map[string]net.Conn
 }
 
 type Session struct {
@@ -47,7 +48,7 @@ func main() {
 	}
 	defer ln.Close()
 
-	env := Env{AccountList: []Account{}, UserList: make(map[string]*Account), ConnList: make(map[string]net.Conn)}
+	env := Env{AccountList: []Account{}, UserMap: make(map[string]*Account), NicknameMap: make(map[string]*Account), ConnMap: make(map[string]net.Conn)}
 
 	fmt.Println("Listening on ", CONN_HOST+":"+CONN_PORT)
 	for {
@@ -66,8 +67,10 @@ func runSession(env *Env, conn net.Conn) {
 	defer session.Conn.Close()
 	session.authorize()
 
-	fmt.Println("UserList", session.Env.UserList)
-	fmt.Println("SessionList", session.Env.ConnList)
+	fmt.Println("AccountList", session.Env.AccountList)
+	fmt.Println("UserMap", session.Env.UserMap)
+	fmt.Println("UserMap", session.Env.UserMap)
+	fmt.Println("ConnMap", session.Env.ConnMap)
 
 	for {
 		request, err := session.getRequest()
@@ -83,7 +86,7 @@ func (session *Session) handleRequest(request string) {
 	case strings.Contains(request, "PRIVMSG"):
 		session.privateMSG(request)
 	}
-	
+
 }
 
 func (session *Session) getRequest() (string, error) {
@@ -117,13 +120,13 @@ func (session *Session) privateMSG(request string) {
 		i := strings.Index(request[1:], ":")
 		if i != 0 {
 			//:<nick>!<user>@<host> PRIVMSG dest :msg
-			msg := fmt.Sprintf(":%s!%s@%s PRIVMSG %s :%s", src_nick, 
-														src_user, 
-														CONN_HOST, 
-														dst_nick, 
-														request[i+1:])
+			msg := fmt.Sprintf(":%s!%s@%s PRIVMSG %s :%s", src_nick,
+				src_user,
+				CONN_HOST,
+				dst_nick,
+				request[i+1:])
 			//get dst's connexion
-			dst_conn := session.Env.ConnList[dst_nick]
+			dst_conn := session.Env.ConnMap[dst_nick]
 			//send message from src to dst
 			dst_conn.Write([]byte(msg))
 		}
