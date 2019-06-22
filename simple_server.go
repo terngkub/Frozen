@@ -5,6 +5,7 @@ import (
 	"log"
 	"net"
 	"os"
+	"strings"
 )
 
 const (
@@ -17,6 +18,12 @@ type Account struct {
 	Password string
 	User     string
 	Nickname string
+}
+
+type Channel struct {
+	Name string
+	Topic string
+	UserList []*Account
 }
 
 type Env struct {
@@ -84,4 +91,31 @@ func (session *Session) getRequest() (string, error) {
 	requestStr := string(request[:len])
 	fmt.Println("<" + requestStr + ">")
 	return requestStr, nil
+}
+
+func privateMSG(session *Session) {
+	request := session.getRequest()
+	matches := doRegexpSubmatch("PRIVMSG (.*)\r\n", request)
+	//if dst exists
+	var dst string
+	if len(matches) > 0 {
+		for _, usr := range session.Env.AccountList {
+			if matches[1] == usr.Nickname {
+				dst = usr.Nickname
+				fmt.Println(dst)
+			}
+		}
+	}
+	//grab message
+
+	if len(request) > 1 {
+		i := strings.Index(request[1:], ":")
+		if i != 0 {
+			msg := request[i+1:]
+			//get dst's connexion
+			dst_conn := session.Env.ConnList[dst]
+			//send message from src to dst
+			dst_conn.Write([]byte(msg))
+		}
+	}
 }
