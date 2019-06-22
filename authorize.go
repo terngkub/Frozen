@@ -28,5 +28,7 @@ func (session *Session) authorize() error {
 		session.Env.UserList[user] = &session.Env.AccountList[len(session.Env.AccountList)-1]
 	}
 	session.Env.ConnList[nick] = session.Conn
+	session.Conn.Write([]byte(":localhost 001 " + user + " :Welcome"))
+
 	return nil
 }
