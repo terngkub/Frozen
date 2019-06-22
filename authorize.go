@@ -21,7 +21,13 @@ func (session *Session) authorize() error {
 
 		matches = doRegexpSubmatch("NICK (.*)\r\n", request)
 		if len(matches) == 2 {
-			nick = matches[1]
+			_, duplicated := session.Env.NicknameMap[matches[1]]
+			if duplicated {
+				message := fmt.Sprintf(":%s 443 * %s :Nickname is already in use.\r\n", "127.0.0.1", matches[1])
+				session.Conn.Write([]byte(message))
+			} else {
+				nick = matches[1]
+			}
 		}
 
 		matches = doRegexpSubmatch("USER (.*) .* .* :.*\r\n", request)
@@ -30,7 +36,7 @@ func (session *Session) authorize() error {
 		}
 	}
 
-	account, ok := session.Env.UserList[user]
+	account, ok := session.Env.UserMap[user]
 	if ok {
 		// check password
 		if pass != account.Password {
@@ -41,9 +47,10 @@ func (session *Session) authorize() error {
 		newAccount := Account{Password: pass, Nickname: nick, User: user}
 		session.Env.AccountList = append(session.Env.AccountList, newAccount)
 		session.Account = &session.Env.AccountList[len(session.Env.AccountList)-1]
-		session.Env.UserList[user] = &session.Env.AccountList[len(session.Env.AccountList)-1]
+		session.Env.UserMap[user] = &session.Env.AccountList[len(session.Env.AccountList)-1]
+		session.Env.NicknameMap[nick] = &session.Env.AccountList[len(session.Env.AccountList)-1]
 	}
-	session.Env.ConnList[nick] = session.Conn
+	session.Env.ConnMap[nick] = session.Conn
 	message := fmt.Sprintf(":%s %s %s %s\r\n", "127.0.0.1", "001", nick, ":Welcome to the Internet Relay Network")
 	fmt.Println(message)
 	session.Conn.Write([]byte(message))
