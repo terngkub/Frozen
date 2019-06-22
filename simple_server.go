@@ -28,9 +28,8 @@ type Channel struct {
 
 type Env struct {
 	AccountList []Account
-	UserList map[string]*Account
-	ConnList map[string]net.Conn
-	ChannelList []Channel
+	UserList    map[string]*Account
+	ConnList    map[string]net.Conn
 }
 
 type Session struct {
@@ -48,7 +47,7 @@ func main() {
 	}
 	defer ln.Close()
 
-	env := Env{}
+	env := Env{AccountList: []Account{}, UserList: make(map[string]*Account), ConnList: make(map[string]net.Conn)}
 
 	fmt.Println("Listening on ", CONN_HOST+":"+CONN_PORT)
 	for {
@@ -67,31 +66,31 @@ func runSession(env *Env, conn net.Conn) {
 	defer session.Conn.Close()
 	session.authorize()
 
+	fmt.Println("UserList", session.Env.UserList)
+	fmt.Println("SessionList", session.Env.ConnList)
+
 	for {
-		request := session.getRequest()
+		request, err := session.getRequest()
+		if err != nil {
+			break
+		}
 		session.handleRequest(request)
 	}
 }
 
 func (session *Session) handleRequest(request string) {
-	// handle request here
-	//privateMSG(session)
 }
 
-func (session *Session) getRequest() string {
+func (session *Session) getRequest() (string, error) {
 	request := make([]byte, 1024)
 	len, err := session.Conn.Read(request)
 	if err != nil {
 		log.Println("Error reading: ", err)
+		return "", err
 	}
 	requestStr := string(request[:len])
-	return requestStr
-}
-
-func (session *Session) cmdPASS() {
-	request := session.getRequest()
-	matches := doRegexpSubmatch("PASS (.*)\r\n", request)
-	fmt.Println(matches)
+	fmt.Println("<" + requestStr + ">")
+	return requestStr, nil
 }
 
 func privateMSG(session *Session) {
