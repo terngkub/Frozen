@@ -21,6 +21,8 @@ type Account struct {
 
 type Env struct {
 	AccountList []Account
+	UserList    map[string]*Account
+	ConnList    map[string]net.Conn
 }
 
 type Session struct {
@@ -38,7 +40,7 @@ func main() {
 	}
 	defer ln.Close()
 
-	env := Env{}
+	env := Env{AccountList: []Account{}, UserList: make(map[string]*Account), ConnList: make(map[string]net.Conn)}
 
 	fmt.Println("Listening on ", CONN_HOST+":"+CONN_PORT)
 	for {
@@ -56,6 +58,10 @@ func runSession(env *Env, conn net.Conn) {
 	session := Session{Env: env, Conn: conn, Account: nil}
 	defer session.Conn.Close()
 	session.authorize()
+
+	fmt.Println(session.Env.UserList)
+	fmt.Println(session.Env.ConnList)
+	fmt.Println("\n\n")
 
 	for {
 		request := session.getRequest()
@@ -76,16 +82,4 @@ func (session *Session) getRequest() string {
 	requestStr := string(request[:len])
 	fmt.Print(requestStr)
 	return requestStr
-}
-
-func (session *Session) authorize() {
-	session.cmdPASS()
-	// NICK
-	// USER
-}
-
-func (session *Session) cmdPASS() {
-	request := session.getRequest()
-	matches := doRegexpSubmatch("PASS (.*)\r\n", request)
-	fmt.Println(matches)
 }
