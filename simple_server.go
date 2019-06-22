@@ -39,14 +39,13 @@ func handleRequest(conn net.Conn) {
 	request := make([]byte, 1024)
 
 	for {
-		_, err := conn.Read(request)
+		requestLen, err := conn.Read(request)
 		if err != nil {
 			fmt.Println("Error reading : ", err.Error())
 		}
-		conn.Write(request)
+		fmt.Print(string(request))
 
-		if request[0] == 'e' {
-			conn.Write([]byte("exit\n"))
+		if requestLen == 0 {
 			break
 		} else {
 			// parse here
