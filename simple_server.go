@@ -2,9 +2,9 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"net"
 	"os"
-	"regexp"
 )
 
 const (
@@ -19,8 +19,17 @@ type Account struct {
 	Nickname string
 }
 
+type Env struct {
+	AccountList []Account
+}
+
+type Session struct {
+	Env     *Env
+	Conn    net.Conn
+	Account *Account
+}
+
 func main() {
-	//args := os.Args[1:]
 
 	ln, err := net.Listen(CONN_TYPE, CONN_HOST+":"+CONN_PORT)
 	if err != nil {
@@ -28,6 +37,8 @@ func main() {
 		os.Exit(1)
 	}
 	defer ln.Close()
+
+	env := Env{}
 
 	fmt.Println("Listening on ", CONN_HOST+":"+CONN_PORT)
 	for {
@@ -37,40 +48,44 @@ func main() {
 			continue
 		}
 		fmt.Println("Accepted connexion ", conn)
-		go handleRequest(conn)
+		go runSession(&env, conn)
 	}
 }
 
-func handleRequest(conn net.Conn) {
-	defer conn.Close()
-	request := make([]byte, 1024)
+func runSession(env *Env, conn net.Conn) {
+	session := Session{Env: env, Conn: conn, Account: nil}
+	defer session.Conn.Close()
+	session.authorize()
 
 	for {
-		requestLen, err := conn.Read(request)
-		if err != nil {
-			fmt.Println("Error reading : ", err.Error())
-		}
-		fmt.Print(string(request))
-
-		if requestLen == 0 {
-			break
-		} else {
-			responseMessage(conn, request)
-		}
+		request := session.getRequest()
+		session.handleRequest(request)
 	}
 }
 
-func responseMessage(conn net.Conn, request []byte) {
-	requestStr := string(request)
-	PASS := regexp.MustCompile("PASS (.*)\r\n")
-	NICK := regexp.MustCompile("NICK (.*)\r\n")
-	USER := regexp.MustCompile("USER (.*)\r\n")
-	switch {
-	case PASS.MatchString(requestStr):
-		fmt.Println("match pass")
-	case NICK.MatchString(requestStr):
-		fmt.Println("match nick")
-	case USER.MatchString(requestStr):
-		fmt.Println("match user")
+func (session *Session) handleRequest(request string) {
+	// handle request here
+}
+
+func (session *Session) getRequest() string {
+	request := make([]byte, 1024)
+	len, err := session.Conn.Read(request)
+	if err != nil {
+		log.Println("Error reading: ", err)
 	}
+	requestStr := string(request[:len])
+	fmt.Print(requestStr)
+	return requestStr
+}
+
+func (session *Session) authorize() {
+	session.cmdPASS()
+	// NICK
+	// USER
+}
+
+func (session *Session) cmdPASS() {
+	request := session.getRequest()
+	matches := doRegexpSubmatch("PASS (.*)\r\n", request)
+	fmt.Println(matches)
 }
