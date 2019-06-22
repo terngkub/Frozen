@@ -20,9 +20,9 @@ func main() {
 		fmt.Println("Error listening :", err.Error())
 		os.Exit(1)
 	}
+	defer ln.Close()
 
 	fmt.Println("Listening on ", CONN_HOST+":"+CONN_PORT)
-	defer ln.Close()
 	for {
 		conn, err := ln.Accept()
 		if err != nil {
@@ -35,12 +35,22 @@ func main() {
 }
 
 func handleRequest(conn net.Conn) {
-	buf := make([]byte, 1024)
+	defer conn.Close()
+	request := make([]byte, 1024)
 
-	_, err := conn.Read(buf)
-	if err != nil {
-		fmt.Println("Error reading : ", err.Error())
+	for {
+		_, err := conn.Read(request)
+		if err != nil {
+			fmt.Println("Error reading : ", err.Error())
+		}
+		conn.Write(request)
+
+		if request[0] == 'e' {
+			conn.Write([]byte("exit\n"))
+			break
+		} else {
+			// parse here
+			conn.Write([]byte("Message recieved\n"))
+		}
 	}
-	conn.Write([]byte("Message recieved\n"))
-	conn.Close()
 }
