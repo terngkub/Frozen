@@ -59,12 +59,14 @@ func runSession(env *Env, conn net.Conn) {
 	defer session.Conn.Close()
 	session.authorize()
 
-	fmt.Println(session.Env.UserList)
-	fmt.Println(session.Env.ConnList)
-	fmt.Println("\n\n")
+	fmt.Println("UserList", session.Env.UserList)
+	fmt.Println("SessionList", session.Env.ConnList)
 
 	for {
-		request := session.getRequest()
+		request, err := session.getRequest()
+		if err != nil {
+			break
+		}
 		session.handleRequest(request)
 	}
 }
@@ -72,13 +74,14 @@ func runSession(env *Env, conn net.Conn) {
 func (session *Session) handleRequest(request string) {
 }
 
-func (session *Session) getRequest() string {
+func (session *Session) getRequest() (string, error) {
 	request := make([]byte, 1024)
 	len, err := session.Conn.Read(request)
 	if err != nil {
 		log.Println("Error reading: ", err)
+		return "", err
 	}
 	requestStr := string(request[:len])
 	fmt.Println("<" + requestStr + ">")
-	return requestStr
+	return requestStr, nil
 }
