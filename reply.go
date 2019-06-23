@@ -58,3 +58,10 @@ func (session *Session) error464() {
 	message := fmt.Sprintf(":%s 464 :Password incorrect\r\n", CONN_HOST)
 	session.reply(message)
 }
+
+//channels
+
+func (session Session) error475(channel string) {
+	message := fmt.Sprintf("%s :Cannot join channel\r\n", channel)
+	session.reply(message)
+}

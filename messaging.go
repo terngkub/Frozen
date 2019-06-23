@@ -28,9 +28,9 @@ func (session *Session) privateMSG(request string) {
 				channel, ok := session.Env.ChannelMap[matches[1]]
 				if ok == true {
 					dst = channel.Name
+					chann = *channel
 					found = true
 					is_chan = true
-					chann = *channel
 				}
 			}
 		}
@@ -93,6 +93,8 @@ func (session *Session) joinChan(request string) {
 				session.createChannel(req_chans[i], "", "")
 			}
 		}
+	} else {
+		session.error461(request)
 	}
 }
 
@@ -101,6 +103,8 @@ func (session *Session) checkChan(channel *Channel, req_keys []string, idx int) 
 		if len(req_keys) > idx && len(req_keys[idx]) > 0 {
 			if req_keys[idx] == channel.Key {
 				session.append_user(channel)
+			} else {
+				session.error475(channel.Name)
 			}
 		}
 	} else {
@@ -218,11 +222,5 @@ func (session *Session) sendPart(request string, src *Account, channel *Channel)
 			channel.UserList = remove(channel.UserList, i)
 			delete(channel.UserMap, user.Nickname)
 		}
-
 	}
-}
-
-func remove(s []*Account, i int) []*Account {
-	s[len(s)-1], s[i] = s[i], s[len(s)-1]
-	return s[:len(s)-1]
 }
