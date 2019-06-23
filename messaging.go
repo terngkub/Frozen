@@ -103,8 +103,6 @@ func (session *Session) checkChan(channel *Channel, req_keys []string, idx int) 
 		if len(req_keys) > idx && len(req_keys[idx]) > 0 {
 			if req_keys[idx] == channel.Key {
 				session.append_user(channel)
-			} else {
-				session.error475(channel.Name)
 			}
 		}
 	} else {
