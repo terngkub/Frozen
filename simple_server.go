@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"net"
@@ -21,12 +22,16 @@ type Account struct {
 }
 
 type Channel struct {
-	Name     string
-	Topic    string
-	UserList []*Account
+	Name      string
+	Topic     string
+	Key       string
+	AdminList []*Account
+	UserList  []*Account
+	BanList   []*Account
 }
 
 type Env struct {
+	ChannelList []Channel
 	AccountList []Account
 	UserMap     map[string]*Account
 	NicknameMap map[string]*Account
@@ -46,10 +51,11 @@ func main() {
 		os.Exit(1)
 	}
 	defer ln.Close()
-	env := Env{AccountList: []Account{}, 
-							UserMap: make(map[string]*Account), 
-							NicknameMap: make(map[string]*Account), 
-							ConnMap: make(map[string]net.Conn)}
+	env := Env{AccountList: []Account{},
+		ChannelList: []Channel{},
+		UserMap:     make(map[string]*Account),
+		NicknameMap: make(map[string]*Account),
+		ConnMap:     make(map[string]net.Conn)}
 	fmt.Println("Listening on ", CONN_HOST+":"+CONN_PORT)
 	for {
 		conn, err := ln.Accept()
@@ -66,10 +72,10 @@ func runSession(env *Env, conn net.Conn) {
 	session := Session{Env: env, Conn: conn, Account: nil}
 	defer session.Conn.Close()
 	session.authorize()
-	fmt.Println("AccountList", session.Env.AccountList)
-	fmt.Println("UserMap", session.Env.UserMap)
-	fmt.Println("UserMap", session.Env.UserMap)
-	fmt.Println("ConnMap", session.Env.ConnMap)
+	//fmt.Println("AccountList", session.Env.AccountList)
+	//fmt.Println("UserMap", session.Env.UserMap)
+	//fmt.Println("UserMap", session.Env.UserMap)
+	//fmt.Println("ConnMap", session.Env.ConnMap)
 	for {
 		request, err := session.getRequest()
 		if err != nil {
@@ -95,53 +101,10 @@ func (session *Session) getRequest() (string, error) {
 		log.Println("Error reading: ", err)
 		return "", err
 	}
-	requestStr := string(request[:len])
+	if request[len-2] != '\r' || request[len-1] != '\n' {
+		return "", errors.New("no CRLF")
+	}
+	requestStr := string(request[:len-2])
 	fmt.Println("<" + requestStr + ">")
 	return requestStr, nil
-}
-
-func (session *Session) privateMSG(request string) {
-	src_nick := session.Account.Nickname
-	src_user := session.Account.User
-	matches := doRegexpSubmatch("PRIVMSG (.*) :(.*)\r\n", request)
-	//if dst exists
-	var dst_nick string
-	if len(matches) > 0 {
-		dst_nick = session.Env.NicknameMap[matches[1]].Nickname
-	}
-	//grab message
-	if len(request) > 1 {
-		i := strings.Index(request[1:], ":")
-		if i != 0 {
-			//:<nick>!<user>@<host> PRIVMSG dest :msg
-			msg := fmt.Sprintf(":%s!%s@%s PRIVMSG %s :%s", src_nick,
-				src_user,
-				CONN_HOST,
-				dst_nick,
-				request[i+1:])
-			//get dst's connexion
-			dst_conn := session.Env.ConnMap[dst_nick]
-			//send message from src to dst
-			dst_conn.Write([]byte(msg))
-		}
-	}
-}
-
-func (session *Session) joinChan(request string) {
-	//src_user := session.Account.User
-	//matches := doRegexpSubmatch("JOIN (.*) ,(.*)", request)
-	//var sp_matches []string
-	//var req_chans []string
-	//var req_keys []string
-	sp_matches := strings.Split(request, " ")
-	if len(sp_matches) > 1 {
-		req_chans := strings.Split(sp_matches[1], ",")
-		/*if len(sp_matches) >= 2 {
-			req_keys := strings.Split(sp_matches[2], ",")
-		}*/
-	
-
-	fmt.Println(req_chans)
-	//fmt.Println(req_keys)
-	}
 }
