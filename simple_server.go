@@ -88,7 +88,6 @@ func (session *Session) handleRequest(request string) {
 	case strings.HasPrefix(request, "PRIVMSG "):
 		session.privateMSG(request)
 	}
-
 }
 
 func (session *Session) getRequest() (string, error) {

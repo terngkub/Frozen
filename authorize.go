@@ -5,57 +5,88 @@ import (
 	"fmt"
 )
 
-func (session *Session) authorize() error {
-	var pass, nick, user string
+func (account *Account) isComplete() bool {
+	if account.Password != "" && account.Nickname != "" && account.User != "" {
+		return true
+	}
+	return false
+}
 
-	for pass == "" || nick == "" || user == "" {
+func (session *Session) authorize() error {
+	newAccount := Account{}
+
+	for !newAccount.isComplete() {
+
 		request, err := session.getRequest()
 		if err != nil {
 			return err
 		}
 
-		matches := doRegexpSubmatch("PASS +(.+)\r\n", request)
-		if len(matches) == 2 {
-			pass = matches[1]
+		newPass, err := session.cmdPASS(request)
+		if err != nil {
+			continue
+		}
+		if newPass != "" {
+			newAccount.Password = newPass
 		}
 
-		matches = doRegexpSubmatch("NICK +(.+)\r\n", request)
+		matches := doRegexpSubmatch("NICK +(.+)\r\n", request)
 		if len(matches) == 2 {
 			_, duplicated := session.Env.NicknameMap[matches[1]]
 			if duplicated {
 				message := fmt.Sprintf(":%s 443 * %s :Nickname is already in use.\r\n", "127.0.0.1", matches[1])
 				session.Conn.Write([]byte(message))
 			} else {
-				nick = matches[1]
+				newAccount.Nickname = matches[1]
 			}
 		}
 
 		matches = doRegexpSubmatch("USER +(.+) +.+ +.+ +:.+\r\n", request)
 		if len(matches) == 2 {
-			user = matches[1]
+			newAccount.User = matches[1]
 		}
 	}
 
-	account, ok := session.Env.UserMap[user]
+	account, ok := session.Env.UserMap[newAccount.User]
 	if ok {
 		// check password
-		if pass != account.Password {
+		if newAccount.Password != account.Password {
 			return errors.New("wrong password")
 		}
 	} else {
 		// create new user
-		newAccount := Account{Password: pass, Nickname: nick, User: user}
 		session.Env.AccountList = append(session.Env.AccountList, newAccount)
 		session.Account = &session.Env.AccountList[len(session.Env.AccountList)-1]
-		session.Env.UserMap[user] = &session.Env.AccountList[len(session.Env.AccountList)-1]
-		session.Env.NicknameMap[nick] = &session.Env.AccountList[len(session.Env.AccountList)-1]
+		session.Env.UserMap[newAccount.User] = &session.Env.AccountList[len(session.Env.AccountList)-1]
+		session.Env.NicknameMap[newAccount.Nickname] = &session.Env.AccountList[len(session.Env.AccountList)-1]
 	}
-	session.Env.ConnMap[nick] = session.Conn
-	message := fmt.Sprintf(":%s %s %s %s\r\n", "127.0.0.1", "001", nick, ":Welcome to the Internet Relay Network")
+	session.Env.ConnMap[newAccount.Nickname] = session.Conn
+	message := fmt.Sprintf(":%s %s %s %s\r\n", "127.0.0.1", "001", newAccount.Nickname, ":Welcome to the Internet Relay Network")
 	fmt.Println(message)
 	session.Conn.Write([]byte(message))
 
 	return nil
+}
+
+func (session *Session) cmdPASS(request string) (string, error) {
+	if session.Account != nil {
+		message := fmt.Sprintf(":%s 462 :You may not reregister", CONN_HOST)
+		session.Conn.Write([]byte(message))
+		return "", errors.New("462")
+	}
+
+	matches := doRegexpSubmatch("(?:.+ ){0,1}PASS +(.*)\r\n", request)
+	if len(matches) != 2 {
+		return "", nil
+	}
+
+	if matches[1] == "" {
+		message := fmt.Sprintf(":%s 461 %s :Not enough parameters", CONN_HOST, "PASS")
+		session.Conn.Write([]byte(message))
+		return "", errors.New("461")
+	}
+
+	return matches[1], nil
 }
 
 func (session *Session) changeNickname(request string) {
@@ -68,9 +99,4 @@ func (session *Session) changeNickname(request string) {
 	delete(session.Env.NicknameMap, session.Account.Nickname)
 	delete(session.Env.ConnMap, session.Account.Nickname)
 	session.Account.Nickname = matches[1]
-
-	fmt.Println("AccountList", session.Env.AccountList)
-	fmt.Println("UserMap", session.Env.UserMap)
-	fmt.Println("UserMap", session.Env.UserMap)
-	fmt.Println("ConnMap", session.Env.ConnMap)
 }
