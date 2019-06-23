@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"net"
@@ -21,16 +22,22 @@ type Account struct {
 }
 
 type Channel struct {
-	Name     string
-	Topic    string
-	UserList []*Account
+	Name      string
+	Topic     string
+	Key       string
+	AdminList []*Account
+	UserList  []*Account
+	BanList   []*Account
+	UserMap   map[string]*Account
 }
 
 type Env struct {
+	ChannelList []Channel
 	AccountList []Account
 	UserMap     map[string]*Account
 	NicknameMap map[string]*Account
 	ConnMap     map[string]net.Conn
+	ChannelMap  map[string]*Channel
 }
 
 type Session struct {
@@ -40,16 +47,18 @@ type Session struct {
 }
 
 func main() {
-
 	ln, err := net.Listen(CONN_TYPE, CONN_HOST+":"+CONN_PORT)
 	if err != nil {
 		fmt.Println("Error listening :", err.Error())
 		os.Exit(1)
 	}
 	defer ln.Close()
-
-	env := Env{AccountList: []Account{}, UserMap: make(map[string]*Account), NicknameMap: make(map[string]*Account), ConnMap: make(map[string]net.Conn)}
-
+	env := Env{AccountList: []Account{},
+		ChannelList: []Channel{},
+		UserMap:     make(map[string]*Account),
+		NicknameMap: make(map[string]*Account),
+		ConnMap:     make(map[string]net.Conn),
+		ChannelMap:  make(map[string]*Channel)}
 	fmt.Println("Listening on ", CONN_HOST+":"+CONN_PORT)
 	for {
 		conn, err := ln.Accept()
@@ -66,12 +75,10 @@ func runSession(env *Env, conn net.Conn) {
 	session := Session{Env: env, Conn: conn, Account: nil}
 	defer session.Conn.Close()
 	session.authorize()
-
-	fmt.Println("AccountList", session.Env.AccountList)
-	fmt.Println("UserMap", session.Env.UserMap)
-	fmt.Println("UserMap", session.Env.UserMap)
-	fmt.Println("ConnMap", session.Env.ConnMap)
-
+	//fmt.Println("AccountList", session.Env.AccountList)
+	//fmt.Println("UserMap", session.Env.UserMap)
+	//fmt.Println("UserMap", session.Env.UserMap)
+	//fmt.Println("ConnMap", session.Env.ConnMap)
 	for {
 		request, err := session.getRequest()
 		if err != nil {
@@ -85,8 +92,11 @@ func (session *Session) handleRequest(request string) {
 	switch {
 	case strings.Contains(request, "PRIVMSG"):
 		session.privateMSG(request)
+	case strings.Contains(request, "JOIN"):
+		session.joinChan(request)
+	case strings.Contains(request, "PART"):
+		session.leaveChan(request)
 	}
-
 }
 
 func (session *Session) getRequest() (string, error) {
@@ -96,39 +106,10 @@ func (session *Session) getRequest() (string, error) {
 		log.Println("Error reading: ", err)
 		return "", err
 	}
-	requestStr := string(request[:len])
+	if request[len-2] != '\r' || request[len-1] != '\n' {
+		return "", errors.New("no CRLF")
+	}
+	requestStr := string(request[:len-2])
 	fmt.Println("<" + requestStr + ">")
 	return requestStr, nil
-}
-
-func (session *Session) privateMSG(request string) {
-	src_nick := session.Account.Nickname
-	src_user := session.Account.User
-	matches := doRegexpSubmatch("PRIVMSG (.*) :(.*)\r\n", request)
-	//if dst exists
-	var dst_nick string
-	if len(matches) > 0 {
-		for _, usr := range session.Env.AccountList {
-			fmt.Println("dst nick :", usr.Nickname)
-			if matches[1] == usr.Nickname {
-				dst_nick = usr.Nickname
-			}
-		}
-	}
-	//grab message
-	if len(request) > 1 {
-		i := strings.Index(request[1:], ":")
-		if i != 0 {
-			//:<nick>!<user>@<host> PRIVMSG dest :msg
-			msg := fmt.Sprintf(":%s!%s@%s PRIVMSG %s :%s", src_nick,
-				src_user,
-				CONN_HOST,
-				dst_nick,
-				request[i+1:])
-			//get dst's connexion
-			dst_conn := session.Env.ConnMap[dst_nick]
-			//send message from src to dst
-			dst_conn.Write([]byte(msg))
-		}
-	}
 }

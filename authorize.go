@@ -14,12 +14,12 @@ func (session *Session) authorize() error {
 			return err
 		}
 
-		matches := doRegexpSubmatch("PASS (.*)\r\n", request)
+		matches := doRegexpSubmatch("PASS (.*)", request)
 		if len(matches) == 2 {
 			pass = matches[1]
 		}
 
-		matches = doRegexpSubmatch("NICK (.*)\r\n", request)
+		matches = doRegexpSubmatch("NICK (.*)", request)
 		if len(matches) == 2 {
 			_, duplicated := session.Env.NicknameMap[matches[1]]
 			if duplicated {
@@ -30,7 +30,7 @@ func (session *Session) authorize() error {
 			}
 		}
 
-		matches = doRegexpSubmatch("USER (.*) .* .* :.*\r\n", request)
+		matches = doRegexpSubmatch("USER (.*) .* .* :.*", request)
 		if len(matches) == 2 {
 			user = matches[1]
 		}
