@@ -6,66 +6,36 @@ import (
 )
 
 func (session *Session) privateMSG(request string) {
-	if len(request) > 5 {
-		src := session.Account
-		matches := doRegexpSubmatch("PRIVMSG (.*) :(.*)", request)
-		//if dst exists
-		found := false
-		is_chan := false
-		var chann Channel
-		var dst string
-		if len(matches) > 0 {
-			// look for a user
-			if matches[1][0] != '#' && matches[1][0] != '&' {
-				user, ok := session.Env.NicknameMap[matches[1]]
-				if ok == true {
-					dst = user.Nickname
-					found = true
-				}
-			}
-			// look for a chan
-			if found == false {
-				channel, ok := session.Env.ChannelMap[matches[1]]
-				if ok == true {
-					dst = channel.Name
-					found = true
-					is_chan = true
-					chann = *channel
-				}
-			}
-		}
-		//send message
-		if found == true {
-			session.sendMessage(request, src, dst, chann, is_chan)
-		}
+	matches := doRegexpSubmatch("^PRIVMSG +(.+?) +:(.+)$", request)
+	if len(matches) != 3 {
+		session.error461("PRIVMSG")
+		return
 	}
-}
 
-func (session *Session) sendMessage(request string, src *Account, dst string,
-	chann Channel, is_chan bool) {
-	i := strings.Index(request[1:], ":")
-	if i != 0 {
-		//:<nick>!<user>@<host> PRIVMSG dest :msg
-		msg := fmt.Sprintf(":%s!%s@%s PRIVMSG %s :%s\r\n",
-			src.Nickname,
-			src.User,
-			CONN_HOST,
-			dst,
-			request[i+2:])
-		if is_chan == false {
-			//get dst's connexion
-			dst_conn := session.Env.ConnMap[dst]
-			//send message from src to dst
-			dst_conn.Write([]byte(msg))
-		} else {
-			for _, user := range chann.UserList {
-				if user.Nickname != src.Nickname {
-					//get dst's connexion
-					dst_conn := session.Env.ConnMap[user.Nickname]
-					//send message from src to dst
-					dst_conn.Write([]byte(msg))
+	msg := fmt.Sprintf(":%s!%s@%s PRIVMSG %s :%s\r\n",
+		session.Account.Nickname,
+		session.Account.User,
+		CONN_HOST,
+		matches[1],
+		matches[2])
+
+	if matches[1][0] == '#' || matches[1][0] == '&' {
+		if channel, ok := session.Env.ChannelMap[matches[1]]; ok {
+			for _, account := range channel.UserList {
+				if account.Nickname != session.Account.Nickname {
+					dstConn := session.Env.ConnMap[account.Nickname]
+					dstConn.Write([]byte(msg))
 				}
 			}
+		} else {
+			session.error401(matches[1])
+		}
+	} else {
+		if account, ok := session.Env.NicknameMap[matches[1]]; ok {
+			dstConn := session.Env.ConnMap[account.Nickname]
+			dstConn.Write([]byte(msg))
+		} else {
+			session.error401(matches[1])
 		}
 	}
 }
