@@ -2,40 +2,60 @@ package main
 
 import (
 	"errors"
+	"log"
 	"strings"
 )
 
+func (session *Session) getRequests() []string {
+	request := make([]byte, 512)
+	len, err := session.Conn.Read(request)
+	if err != nil {
+		log.Println("error reading: ", err)
+		return []string{}
+	}
+	log.Printf("recieve: '%s'", request)
+
+	str := string(request[:len])
+
+	if str[len-2] != '\r' || str[len-1] != '\n' {
+		log.Println("error: request doesn't end with \\r\\n")
+		return []string{}
+	}
+	trimmed := strings.Trim(str, "\r\n")
+	splitted := strings.Split(trimmed, "\r\n")
+	return splitted
+}
+
 func (session *Session) authorize() error {
 	newAccount := Account{}
-
 	for !newAccount.isComplete() {
-
-		// TODO parse this in a better manner
-		request, err := session.getRequest()
-		if err != nil {
-			return err
-		}
-
-		switch {
-		case strings.HasPrefix(request, "PASS"):
-			if newPass := session.cmdPASS(request); newPass != "" {
-				newAccount.Password = newPass
+		requests := session.getRequests()
+		for _, request := range requests {
+			switch {
+			case strings.HasPrefix(request, "PASS"):
+				if newPass := session.cmdPASS(request); newPass != "" {
+					newAccount.Password = newPass
+				}
+			case strings.HasPrefix(request, "NICK"):
+				if newNick := session.cmdNICK(request); newNick != "" {
+					newAccount.Nickname = newNick
+				}
+			case strings.HasPrefix(request, "USER"):
+				if newUser := session.cmdUSER(request); newUser != "" {
+					newAccount.User = newUser
+				}
+				// TODO handle unmatch case
 			}
-		case strings.HasPrefix(request, "NICK"):
-			if newNick := session.cmdNICK(request); newNick != "" {
-				newAccount.Nickname = newNick
+			if newAccount.isComplete() {
+				break
 			}
-		case strings.HasPrefix(request, "USER"):
-			if newUser := session.cmdUSER(request); newUser != "" {
-				newAccount.User = newUser
-			}
-			// TODO handle unmatch case
 		}
 	}
 
 	account, ok := session.Env.UserMap[newAccount.User]
 	if ok {
 		if newAccount.Password != account.Password {
+			// TODO handle error464
 			return errors.New("wrong password")
 		}
 	} else {
@@ -58,7 +78,7 @@ func (session *Session) cmdPASS(request string) string {
 		session.error462()
 		return ""
 	}
-	matches := doRegexpSubmatch("PASS +(.+)\r\n", request)
+	matches := doRegexpSubmatch("^PASS +(.+)$", request)
 	if len(matches) != 2 {
 		session.error461("PASS")
 		return ""
@@ -67,7 +87,7 @@ func (session *Session) cmdPASS(request string) string {
 }
 
 func (session *Session) cmdNICK(request string) string {
-	matches := doRegexpSubmatch("NICK +(.+)\r\n", request)
+	matches := doRegexpSubmatch("^NICK +(.+)$", request)
 	if len(matches) != 2 {
 		session.error431()
 		return ""
@@ -88,7 +108,7 @@ func (session *Session) cmdUSER(request string) string {
 		session.error462()
 		return ""
 	}
-	matches := doRegexpSubmatch("USER +(.+) +.+ +.+ +:.+\r\n", request)
+	matches := doRegexpSubmatch("^USER +(.+) +.+ +.+ +:.+$", request)
 	if len(matches) != 2 {
 		session.error461("USER")
 		return ""
