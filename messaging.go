@@ -172,31 +172,38 @@ func (session *Session) leaveChan(request string) {
 		matches := doRegexpSubmatch("PART (.*) :(.*)", request)
 		if len(matches) > 0 {
 			// if channel exists
-			channel, ok := session.Env.ChannelMap[matches[1]]
-			if ok == true {
-				// if user subscribed
-				user, ok := channel.UserMap[src.Nickname]
-				if ok == true {
-					// send messages
-					i := strings.Index(request[1:], ":")
-					msg := fmt.Sprintf(":%s!%s@%s PART %s :%s",
-						user.Nickname,
-						user.Nickname,
-						CONN_HOST,
-						channel.Name,
-						request[i+1:])
-					for _, user := range channel.UserList {
-						if user.Nickname != src.Nickname {
-							dst_conn := session.Env.ConnMap[user.Nickname]
-							dst_conn.Write([]byte(msg))
-						}
+			channel, ok1 := session.Env.ChannelMap[matches[1]]
+			user, ok2 := channel.UserMap[src.Nickname]
+			if ok1 == true && ok2 == true {
+				// send PART messages
+				i := strings.Index(request[1:], ":")
+				msg := fmt.Sprintf(":%s!%s@%s PART %s :%s",
+					user.Nickname,
+					user.Nickname,
+					CONN_HOST,
+					channel.Name,
+					request[i+1:])
+				for _, user := range channel.UserList {
+					if user.Nickname != src.Nickname {
+						dst_conn := session.Env.ConnMap[user.Nickname]
+						dst_conn.Write([]byte(msg))
 					}
-					// leave chann
-
+				}
+				// leave chann
+				for i, user := range channel.UserList {
+					if user.Nickname == src.Nickname {
+						channel.UserList = remove(channel.UserList, i)
+						delete(channel.UserMap, user.Nickname)
+					}
 				}
 			}
 		}
 	}
+}
+
+func remove(s []*Account, i int) []*Account {
+	s[len(s)-1], s[i] = s[i], s[len(s)-1]
+	return s[:len(s)-1]
 }
 
 //value, ok := mapname["key"]
