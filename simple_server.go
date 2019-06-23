@@ -6,6 +6,7 @@ import (
 	"log"
 	"net"
 	"os"
+	"regexp"
 	"strings"
 )
 
@@ -103,7 +104,7 @@ func (session *Session) disconnect() {
 
 func (session *Session) handleRequest(request string) {
 	switch {
-	case strings.HasPrefix(request, "NICK "):
+	case regexp.MustCompile(`^(:(.+) +)?NICK`).MatchString(request):
 		session.changeNickname(request)
 	case strings.HasPrefix(request, "PRIVMSG "):
 		session.privateMSG(request)
