@@ -66,19 +66,22 @@ func main() {
 			fmt.Println("Error accepting ", err.Error())
 			continue
 		}
-		fmt.Println("Accepted connexion ", conn)
+		log.Println("accept connection", conn)
 		go runSession(&env, conn)
 	}
 }
 
 func runSession(env *Env, conn net.Conn) {
 	session := Session{Env: env, Conn: conn, Account: nil}
-	defer session.Conn.Close()
-	session.authorize()
-	//fmt.Println("AccountList", session.Env.AccountList)
-	//fmt.Println("UserMap", session.Env.UserMap)
-	//fmt.Println("UserMap", session.Env.UserMap)
-	//fmt.Println("ConnMap", session.Env.ConnMap)
+	defer session.closeConnection()
+
+	if !session.authorize() {
+		return
+	}
+	defer session.disconnect()
+
+	log.Println("ConnMap", session.Env.ConnMap)
+
 	for {
 		request, err := session.getRequest()
 		if err != nil {
@@ -88,9 +91,21 @@ func runSession(env *Env, conn net.Conn) {
 	}
 }
 
+func (session *Session) closeConnection() {
+	log.Println("close session", session.Conn)
+	session.Conn.Close()
+}
+
+func (session *Session) disconnect() {
+	log.Println("disconnect", session.Account.Nickname)
+	delete(session.Env.ConnMap, session.Account.Nickname)
+}
+
 func (session *Session) handleRequest(request string) {
 	switch {
-	case strings.Contains(request, "PRIVMSG"):
+	case strings.HasPrefix(request, "NICK "):
+		session.changeNickname(request)
+	case strings.HasPrefix(request, "PRIVMSG "):
 		session.privateMSG(request)
 	case strings.Contains(request, "JOIN"):
 		session.joinChan(request)
