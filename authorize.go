@@ -91,11 +91,12 @@ func (session *Session) cmdPASS(request string) string {
 		session.error461("PASS")
 		return ""
 	}
+	log.Println("parse PASS:", matches[1])
 	return matches[1]
 }
 
 func (session *Session) cmdNICK(request string) string {
-	matches := doRegexpSubmatch("^NICK +(.+)$", request)
+	matches := doRegexpSubmatch("^NICK +(.+?)(?: +(?:.+)){0,1}$", request)
 	if len(matches) != 2 {
 		session.error431()
 		return ""
@@ -104,6 +105,7 @@ func (session *Session) cmdNICK(request string) string {
 		session.error432(matches[1])
 		return ""
 	}
+	log.Println("parse NICK:", matches[1])
 	return matches[1]
 }
 
@@ -117,6 +119,7 @@ func (session *Session) cmdUSER(request string) string {
 		session.error461("USER")
 		return ""
 	}
+	log.Println("parse USER:", matches[1])
 	return matches[1]
 }
 
@@ -152,13 +155,24 @@ func (session *Session) register(account *Account) bool {
 }
 
 func (session *Session) changeNickname(request string) {
-	matches := doRegexpSubmatch("NICK +(.+)\r\n", request)
+	matches := doRegexpSubmatch("^(?::(?:.+) +)?NICK +(.+)$", request)
 	if len(matches) != 2 {
+		session.error431()
+		return
+	}
+	if !isValidNickname(matches[1]) {
+		session.error432(matches[1])
+		return
+	}
+	if _, isDuplicated := session.Env.NicknameMap[matches[1]]; isDuplicated {
+		session.error433(matches[1])
 		return
 	}
 	session.Env.NicknameMap[matches[1]] = session.Account
 	session.Env.ConnMap[matches[1]] = session.Conn
 	delete(session.Env.NicknameMap, session.Account.Nickname)
 	delete(session.Env.ConnMap, session.Account.Nickname)
+	oldNickname := session.Account.Nickname
 	session.Account.Nickname = matches[1]
+	log.Printf("change nickname from %s to %s\n", oldNickname, session.Account.Nickname)
 }
