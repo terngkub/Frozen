@@ -129,6 +129,7 @@ func (session *Session) login(newAccount *Account, oldAccount *Account) bool {
 	session.Account = oldAccount
 	session.Env.ConnMap[oldAccount.Nickname] = session.Conn
 	log.Println("login success", session.Conn)
+	session.welcome()
 	return true
 }
 
@@ -146,6 +147,7 @@ func (session *Session) register(account *Account) bool {
 	session.Env.NicknameMap[account.Nickname] = last
 	session.Env.ConnMap[account.Nickname] = session.Conn
 	log.Println("register success", session.Conn)
+	session.welcome()
 	return true
 }
 

@@ -71,10 +71,7 @@ func runSession(env *Env, conn net.Conn) {
 	}
 	defer session.disconnect()
 
-	fmt.Println("AccountList", session.Env.AccountList)
-	fmt.Println("UserMap", session.Env.UserMap)
-	fmt.Println("NicknameMap", session.Env.NicknameMap)
-	fmt.Println("ConnMap", session.Env.ConnMap)
+	log.Println("ConnMap", session.Env.ConnMap)
 
 	for {
 		request, err := session.getRequest()
