@@ -137,7 +137,7 @@ func (session *Session) append_user(channel *Channel) {
 	for _, user := range channel.UserList {
 		alert_message := fmt.Sprintf("%s!%s@%s %s %s\r\n",
 			src_user.Nickname,
-			src_user.Nickname,
+			src_user.User,
 			CONN_HOST,
 			"JOIN",
 			channel.Name)
@@ -146,7 +146,7 @@ func (session *Session) append_user(channel *Channel) {
 	//send responses
 	topic_message := fmt.Sprintf(":%s!%s@%s %s %s %s :%s\r\n",
 		src_user.Nickname,
-		src_user.Nickname,
+		src_user.User,
 		CONN_HOST,
 		"332",
 		src_user.Nickname,
@@ -159,7 +159,7 @@ func (session *Session) append_user(channel *Channel) {
 	}
 	names_message := fmt.Sprintf(":%s!%s@%s %s %s = %s :%s\r\n",
 		src_user.Nickname,
-		src_user.Nickname,
+		src_user.User,
 		CONN_HOST,
 		"353",
 		src_user.Nickname,
@@ -168,7 +168,7 @@ func (session *Session) append_user(channel *Channel) {
 	session.Conn.Write([]byte(names_message))
 	end_names_message := fmt.Sprintf(":%s!%s@%s %s %s %s :%s\r\n",
 		src_user.Nickname,
-		src_user.Nickname,
+		src_user.User,
 		CONN_HOST,
 		"366",
 		src_user.Nickname,
@@ -190,7 +190,7 @@ func (session *Session) leaveChan(request string) {
 				i := strings.Index(request[1:], ":")
 				msg := fmt.Sprintf(":%s!%s@%s PART %s :%s\r\n",
 					user.Nickname,
-					user.Nickname,
+					user.User,
 					CONN_HOST,
 					channel.Name,
 					request[i+1:])
