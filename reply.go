@@ -15,7 +15,10 @@ func (session *Session) welcome() {
 	session.reply(message)
 }
 
-// Nickname
+func (session *Session) error401(name string) {
+	message := fmt.Sprintf(":%s 401 %s :No such nick/channel\r\n", CONN_HOST, name)
+	session.reply(message)
+}
 
 func (session *Session) error431() {
 	message := fmt.Sprintf(":%s 431 :No nickname is given\r\n", CONN_HOST)

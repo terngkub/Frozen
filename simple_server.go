@@ -6,6 +6,7 @@ import (
 	"log"
 	"net"
 	"os"
+	"regexp"
 	"strings"
 )
 
@@ -103,7 +104,7 @@ func (session *Session) disconnect() {
 
 func (session *Session) handleRequest(request string) {
 	switch {
-	case strings.HasPrefix(request, "NICK "):
+	case regexp.MustCompile(`^(:(.+) +)?NICK`).MatchString(request):
 		session.changeNickname(request)
 	case strings.HasPrefix(request, "PRIVMSG "):
 		session.privateMSG(request)
@@ -111,6 +112,10 @@ func (session *Session) handleRequest(request string) {
 		session.joinChan(request)
 	case strings.Contains(request, "PART"):
 		session.leaveChan(request)
+	case request == "NAMES":
+		session.cmdNAMES()
+	case request == "LIST":
+		session.cmdLIST()
 	}
 }
 
@@ -127,4 +132,22 @@ func (session *Session) getRequest() (string, error) {
 	requestStr := string(request[:len-2])
 	fmt.Println("<" + requestStr + ">")
 	return requestStr, nil
+}
+
+func (session *Session) cmdNAMES() {
+	list := make([]string, len(session.Env.ConnMap))
+	for key := range session.Env.ConnMap {
+		list = append(list, key)
+	}
+	message := fmt.Sprintf("%s\r\n", list)
+	session.Conn.Write([]byte(message))
+}
+
+func (session *Session) cmdLIST() {
+	list := make([]string, len(session.Env.ChannelMap))
+	for key := range session.Env.ChannelMap {
+		list = append(list, key)
+	}
+	message := fmt.Sprintf("%s\r\n", list)
+	session.Conn.Write([]byte(message))
 }
