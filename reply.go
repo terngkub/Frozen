@@ -37,7 +37,12 @@ func (session *Session) error434(nick string) {
 	session.reply(message)
 }
 
-// Register
+// Authorization
+
+func (session *Session) error451() {
+	message := fmt.Sprintf(":%s 451 :You have not registered\r\n", CONN_HOST)
+	session.reply(message)
+}
 
 func (session *Session) error461(command string) {
 	message := fmt.Sprintf(":%s 461 %s :Not enough parameters\r\n", CONN_HOST, command)
@@ -46,5 +51,10 @@ func (session *Session) error461(command string) {
 
 func (session *Session) error462() {
 	message := fmt.Sprintf(":%s 462 :You may not reregister\r\n", CONN_HOST)
+	session.reply(message)
+}
+
+func (session *Session) error464() {
+	message := fmt.Sprintf(":%s 464 :Password incorrect\r\n", CONN_HOST)
 	session.reply(message)
 }
