@@ -46,12 +46,12 @@ func (session *Session) sendMessage(request string, src *Account, dst string,
 	i := strings.Index(request[1:], ":")
 	if i != 0 {
 		//:<nick>!<user>@<host> PRIVMSG dest :msg
-		msg := fmt.Sprintf(":%s!%s@%s PRIVMSG %s :%s",
+		msg := fmt.Sprintf(":%s!%s@%s PRIVMSG %s :%s\r\n",
 			src.Nickname,
 			src.User,
 			CONN_HOST,
 			dst,
-			request[i+1:])
+			request[i+2:])
 		if is_chan == false {
 			//get dst's connexion
 			dst_conn := session.Env.ConnMap[dst]
@@ -83,17 +83,18 @@ func (session *Session) joinChan(request string) {
 		for i, req_chan := range req_chans {
 			channel, ok := session.Env.ChannelMap[req_chan]
 			if ok == true {
-				if is_not_banned(src_user, *channel) {
+				if is_banned(src_user, *channel) == false {
 					// check key
 					if channel.Key != "" {
 						if len(req_keys) > i && len(req_keys[i]) > 0 {
 							if req_keys[i] == channel.Key {
-								session.append_user(*channel)
+								session.append_user(channel)
 							}
 						}
 					} else {
-						session.append_user(*channel)
+						session.append_user(channel)
 					}
+					//TODO message if banned
 				}
 			} else if len(req_keys) > i && len(req_keys[i]) > 0 {
 				session.createChannel(req_chans[i], "", req_keys[i])
@@ -104,7 +105,7 @@ func (session *Session) joinChan(request string) {
 	}
 }
 
-func is_not_banned(user *Account, channel Channel) bool {
+func is_banned(user *Account, channel Channel) bool {
 	for _, banned := range channel.BanList {
 		if user.Nickname == banned.Nickname {
 			return true
@@ -123,10 +124,11 @@ func (session *Session) createChannel(name string, topic string, key string) {
 		BanList:   []*Account{},
 		UserMap:   make(map[string]*Account)}
 	session.Env.ChannelList = append(session.Env.ChannelList, new_chan)
-	session.append_user(new_chan)
+	session.Env.ChannelMap[name] = &new_chan
+	session.append_user(&new_chan)
 }
 
-func (session *Session) append_user(channel Channel) {
+func (session *Session) append_user(channel *Channel) {
 	// add user to channel
 	src_user := session.Account
 	channel.UserList = append(channel.UserList, src_user)
@@ -177,7 +179,7 @@ func (session *Session) leaveChan(request string) {
 			if ok1 == true && ok2 == true {
 				// send PART messages
 				i := strings.Index(request[1:], ":")
-				msg := fmt.Sprintf(":%s!%s@%s PART %s :%s",
+				msg := fmt.Sprintf(":%s!%s@%s PART %s :%s\r\n",
 					user.Nickname,
 					user.Nickname,
 					CONN_HOST,
@@ -205,5 +207,3 @@ func remove(s []*Account, i int) []*Account {
 	s[len(s)-1], s[i] = s[i], s[len(s)-1]
 	return s[:len(s)-1]
 }
-
-//value, ok := mapname["key"]
