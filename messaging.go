@@ -144,7 +144,10 @@ func (session *Session) append_user(channel *Channel) {
 		session.Env.ConnMap[user.Nickname].Write([]byte(alert_message))
 	}
 	//send responses
-	topic_message := fmt.Sprintf("%s %s %s :%s\r\n",
+	topic_message := fmt.Sprintf(":%s!%s@%s %s %s %s :%s\r\n",
+		src_user.Nickname,
+		src_user.Nickname,
+		CONN_HOST,
 		"332",
 		src_user.Nickname,
 		channel.Name,
@@ -154,13 +157,19 @@ func (session *Session) append_user(channel *Channel) {
 	for _, user := range channel.UserList {
 		users_list += user.Nickname + " "
 	}
-	names_message := fmt.Sprintf("%s %s = %s :%s\r\n",
+	names_message := fmt.Sprintf(":%s!%s@%s %s %s = %s :%s\r\n",
+		src_user.Nickname,
+		src_user.Nickname,
+		CONN_HOST,
 		"353",
 		src_user.Nickname,
 		channel.Name,
 		users_list)
 	session.Conn.Write([]byte(names_message))
-	end_names_message := fmt.Sprintf("%s %s %s :%s\r\n",
+	end_names_message := fmt.Sprintf(":%s!%s@%s %s %s %s :%s\r\n",
+		src_user.Nickname,
+		src_user.Nickname,
+		CONN_HOST,
 		"366",
 		src_user.Nickname,
 		channel.Name,
