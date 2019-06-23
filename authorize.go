@@ -14,12 +14,12 @@ func (session *Session) authorize() error {
 			return err
 		}
 
-		matches := doRegexpSubmatch("PASS (.*)\r\n", request)
+		matches := doRegexpSubmatch("PASS +(.+)\r\n", request)
 		if len(matches) == 2 {
 			pass = matches[1]
 		}
 
-		matches = doRegexpSubmatch("NICK (.*)\r\n", request)
+		matches = doRegexpSubmatch("NICK +(.+)\r\n", request)
 		if len(matches) == 2 {
 			_, duplicated := session.Env.NicknameMap[matches[1]]
 			if duplicated {
@@ -30,7 +30,7 @@ func (session *Session) authorize() error {
 			}
 		}
 
-		matches = doRegexpSubmatch("USER (.*) .* .* :.*\r\n", request)
+		matches = doRegexpSubmatch("USER +(.+) +.+ +.+ +:.+\r\n", request)
 		if len(matches) == 2 {
 			user = matches[1]
 		}
@@ -56,4 +56,21 @@ func (session *Session) authorize() error {
 	session.Conn.Write([]byte(message))
 
 	return nil
+}
+
+func (session *Session) changeNickname(request string) {
+	matches := doRegexpSubmatch("NICK +(.+)\r\n", request)
+	if len(matches) != 2 {
+		return
+	}
+	session.Env.NicknameMap[matches[1]] = session.Account
+	session.Env.ConnMap[matches[1]] = session.Conn
+	delete(session.Env.NicknameMap, session.Account.Nickname)
+	delete(session.Env.ConnMap, session.Account.Nickname)
+	session.Account.Nickname = matches[1]
+
+	fmt.Println("AccountList", session.Env.AccountList)
+	fmt.Println("UserMap", session.Env.UserMap)
+	fmt.Println("UserMap", session.Env.UserMap)
+	fmt.Println("ConnMap", session.Env.ConnMap)
 }

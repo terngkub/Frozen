@@ -69,7 +69,7 @@ func runSession(env *Env, conn net.Conn) {
 
 	fmt.Println("AccountList", session.Env.AccountList)
 	fmt.Println("UserMap", session.Env.UserMap)
-	fmt.Println("UserMap", session.Env.UserMap)
+	fmt.Println("NicknameMap", session.Env.NicknameMap)
 	fmt.Println("ConnMap", session.Env.ConnMap)
 
 	for {
@@ -83,7 +83,9 @@ func runSession(env *Env, conn net.Conn) {
 
 func (session *Session) handleRequest(request string) {
 	switch {
-	case strings.Contains(request, "PRIVMSG"):
+	case strings.HasPrefix(request, "NICK "):
+		session.changeNickname(request)
+	case strings.HasPrefix(request, "PRIVMSG "):
 		session.privateMSG(request)
 	}
 
