@@ -130,22 +130,18 @@ func (session *Session) privateMSG(request string) {
 func (session *Session) joinChan(request string) {
 	//src_user := session.Account.User
 	//matches := doRegexpSubmatch("JOIN (.*) ,(.*)", request)
-	
-	var req_chans []string
+	//var sp_matches []string
+	//var req_chans []string
 	//var req_keys []string
-	start := 0
-	end := 0
-	request = request[len("JOIN "):]
-	for i, char := range request {
-		if char == '#' || char == '&' {
-			start = i + 1
-		} else if char == ',' || char == ' ' {
-			end = i
-			req_chans = append(req_chans, request[start:end])
-			if char == ' ' {
-				break
-			}
-		}
+	sp_matches := strings.Split(request, " ")
+	if len(sp_matches) > 1 {
+		req_chans := strings.Split(sp_matches[1], ",")
+		/*if len(sp_matches) >= 2 {
+			req_keys := strings.Split(sp_matches[2], ",")
+		}*/
+	
+
+	fmt.Println(req_chans)
+	//fmt.Println(req_keys)
 	}
-	//fmt.Println(req_chans)
 }
