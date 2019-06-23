@@ -55,16 +55,7 @@ func (session *Session) joinChan(request string) {
 			if ok == true {
 				if is_banned(src_user, *channel) == false {
 					// check key
-					if channel.Key != "" {
-						if len(req_keys) > i && len(req_keys[i]) > 0 {
-							if req_keys[i] == channel.Key {
-								session.append_user(channel)
-							}
-						}
-					} else {
-						session.append_user(channel)
-					}
-					//TODO message if banned
+					session.checkChan(channel, req_keys, i)
 				}
 			} else if len(req_keys) > i && len(req_keys[i]) > 0 {
 				session.createChannel(req_chans[i], "", req_keys[i])
@@ -72,7 +63,23 @@ func (session *Session) joinChan(request string) {
 				session.createChannel(req_chans[i], "", "")
 			}
 		}
+	} else {
+		session.error461(request)
 	}
+}
+
+func (session *Session) checkChan(channel *Channel, req_keys []string, idx int) {
+	if channel.Key != "" {
+		if len(req_keys) > idx && len(req_keys[idx]) > 0 {
+			if req_keys[idx] == channel.Key {
+				session.append_user(channel)
+			}
+		}
+	} else {
+		session.append_user(channel)
+	}
+	//TODO message if banned
+
 }
 
 func is_banned(user *Account, channel Channel) bool {
@@ -152,37 +159,36 @@ func (session *Session) leaveChan(request string) {
 		src := session.Account
 		matches := doRegexpSubmatch("PART (.*) :(.*)", request)
 		if len(matches) > 0 {
-			// if channel exists
+			// if channel/user exists
 			channel, ok1 := session.Env.ChannelMap[matches[1]]
-			user, ok2 := channel.UserMap[src.Nickname]
+			_, ok2 := channel.UserMap[src.Nickname]
 			if ok1 == true && ok2 == true {
-				// send PART messages
-				i := strings.Index(request[1:], ":")
-				msg := fmt.Sprintf(":%s!%s@%s PART %s :%s\r\n",
-					user.Nickname,
-					user.User,
-					CONN_HOST,
-					channel.Name,
-					request[i+1:])
-				for _, user := range channel.UserList {
-					if user.Nickname != src.Nickname {
-						dst_conn := session.Env.ConnMap[user.Nickname]
-						dst_conn.Write([]byte(msg))
-					}
-				}
-				// leave chann
-				for i, user := range channel.UserList {
-					if user.Nickname == src.Nickname {
-						channel.UserList = remove(channel.UserList, i)
-						delete(channel.UserMap, user.Nickname)
-					}
-				}
+				session.sendPart(request, src, channel)
 			}
 		}
 	}
 }
 
-func remove(s []*Account, i int) []*Account {
-	s[len(s)-1], s[i] = s[i], s[len(s)-1]
-	return s[:len(s)-1]
+func (session *Session) sendPart(request string, src *Account, channel *Channel) {
+	// send PART messages
+	i := strings.Index(request[1:], ":")
+	msg := fmt.Sprintf(":%s!%s@%s PART %s :%s\r\n",
+		src.Nickname,
+		src.User,
+		CONN_HOST,
+		channel.Name,
+		request[i+2:])
+	for _, user := range channel.UserList {
+		if user.Nickname != src.Nickname {
+			dst_conn := session.Env.ConnMap[user.Nickname]
+			dst_conn.Write([]byte(msg))
+		}
+	}
+	// leave chann
+	for i, user := range channel.UserList {
+		if user.Nickname == src.Nickname {
+			channel.UserList = remove(channel.UserList, i)
+			delete(channel.UserMap, user.Nickname)
+		}
+	}
 }
