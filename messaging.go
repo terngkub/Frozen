@@ -6,75 +6,102 @@ import (
 )
 
 func (session *Session) privateMSG(request string) {
-	src_nick := session.Account.Nickname
-	src_user := session.Account.User
-	matches := doRegexpSubmatch("PRIVMSG (.*) :(.*)", request)
-	//if dst exists
-	var dst_nick string
-	if len(matches) > 0 {
-		dst_nick = session.Env.NicknameMap[matches[1]].Nickname
+	if len(request) > 5 {
+		src := session.Account
+		matches := doRegexpSubmatch("PRIVMSG (.*) :(.*)", request)
+		//if dst exists
+		found := false
+		is_chan := false
+		var chann Channel
+		var dst string
+		if len(matches) > 0 {
+			// look for a user
+			if matches[1][0] != '#' && matches[1][0] != '&' {
+				user, ok := session.Env.NicknameMap[matches[1]]
+				if ok == true {
+					dst = user.Nickname
+					found = true
+				}
+			}
+			// look for a chan
+			if found == false {
+				channel, ok := session.Env.ChannelMap[matches[1]]
+				if ok == true {
+					dst = channel.Name
+					found = true
+					is_chan = true
+					chann = *channel
+				}
+			}
+		}
+		//send message
+		if found == true {
+			session.sendMessage(request, src, dst, chann, is_chan)
+		}
 	}
-	//grab message
-	if len(request) > 1 {
-		i := strings.Index(request[1:], ":")
-		if i != 0 {
-			//:<nick>!<user>@<host> PRIVMSG dest :msg
-			msg := fmt.Sprintf(":%s!%s@%s PRIVMSG %s :%s", src_nick,
-				src_user,
-				CONN_HOST,
-				dst_nick,
-				request[i+1:])
+}
+
+func (session *Session) sendMessage(request string, src *Account, dst string,
+	chann Channel, is_chan bool) {
+	i := strings.Index(request[1:], ":")
+	if i != 0 {
+		//:<nick>!<user>@<host> PRIVMSG dest :msg
+		msg := fmt.Sprintf(":%s!%s@%s PRIVMSG %s :%s",
+			src.Nickname,
+			src.User,
+			CONN_HOST,
+			dst,
+			request[i+1:])
+		if is_chan == false {
 			//get dst's connexion
-			dst_conn := session.Env.ConnMap[dst_nick]
+			dst_conn := session.Env.ConnMap[dst]
 			//send message from src to dst
 			dst_conn.Write([]byte(msg))
+		} else {
+			for _, user := range chann.UserList {
+				if user.Nickname != src.Nickname {
+					//get dst's connexion
+					dst_conn := session.Env.ConnMap[user.Nickname]
+					//send message from src to dst
+					dst_conn.Write([]byte(msg))
+				}
+			}
 		}
 	}
 }
 
 func (session *Session) joinChan(request string) {
 	src_user := session.Account
-	found := false
 	var req_keys []string
 	sp_matches := strings.Split(request, " ")
+	// grab channels and keys from request
 	if len(sp_matches) >= 2 {
 		req_chans := strings.Split(sp_matches[1], ",")
 		if len(sp_matches) >= 3 {
 			req_keys = strings.Split(sp_matches[2], ",")
 		}
-		//fmt.Println(req_chans)
-		//fmt.Println(req_keys)
-		// loop over req_chan
 		for i, req_chan := range req_chans {
-			// loop over channels
-			for _, channel := range session.Env.ChannelList {
-				// if req_chan exists
-				if channel.Name == req_chan && is_not_banned(src_user, channel) {
+			channel, ok := session.Env.ChannelMap[req_chan]
+			if ok == true {
+				if is_not_banned(src_user, *channel) {
 					// check key
 					if channel.Key != "" {
 						if len(req_keys) > i && len(req_keys[i]) > 0 {
 							if req_keys[i] == channel.Key {
-								channel.UserList = append(channel.UserList, src_user)
+								session.append_user(*channel)
 							}
 						}
 					} else {
-						channel.UserList = append(channel.UserList, src_user)
+						session.append_user(*channel)
 					}
-					found = true
-					break
 				}
-			}
-			// if channel doesn't exists
-			if found == false {
-				if len(req_keys) > i && len(req_keys[i]) > 0 {
-					session.createChannel(req_chans[i], "", req_keys[i])
-				} else {
-					session.createChannel(req_chans[i], "", "")
-				}
+			} else if len(req_keys) > i && len(req_keys[i]) > 0 {
+				session.createChannel(req_chans[i], "", req_keys[i])
+			} else {
+				session.createChannel(req_chans[i], "", "")
 			}
 		}
 	}
-	//fmt.Println(session.Env.ChannelList)
 }
 
 func is_not_banned(user *Account, channel Channel) bool {
@@ -92,7 +119,84 @@ func (session *Session) createChannel(name string, topic string, key string) {
 		Topic:     topic,
 		Key:       key,
 		AdminList: []*Account{session.Account},
-		UserList:  []*Account{session.Account},
-		BanList:   []*Account{}}
+		UserList:  []*Account{},
+		BanList:   []*Account{},
+		UserMap:   make(map[string]*Account)}
 	session.Env.ChannelList = append(session.Env.ChannelList, new_chan)
+	session.append_user(new_chan)
 }
+
+func (session *Session) append_user(channel Channel) {
+	// add user to channel
+	src_user := session.Account
+	channel.UserList = append(channel.UserList, src_user)
+	channel.UserMap[src_user.Nickname] = src_user
+	// alert other users
+	for _, user := range channel.UserList {
+		alert_message := fmt.Sprintf("%s!%s@%s %s %s\r\n",
+			src_user.Nickname,
+			src_user.Nickname,
+			CONN_HOST,
+			"JOIN",
+			channel.Name)
+		session.Env.ConnMap[user.Nickname].Write([]byte(alert_message))
+	}
+	//send responses
+	topic_message := fmt.Sprintf("%s %s %s :%s\r\n",
+		"332",
+		src_user.Nickname,
+		channel.Name,
+		channel.Topic)
+	session.Conn.Write([]byte(topic_message))
+	var users_list string
+	for _, user := range channel.UserList {
+		users_list += user.Nickname + " "
+	}
+	names_message := fmt.Sprintf("%s %s = %s :%s\r\n",
+		"353",
+		src_user.Nickname,
+		channel.Name,
+		users_list)
+	session.Conn.Write([]byte(names_message))
+	end_names_message := fmt.Sprintf("%s %s %s :%s\r\n",
+		"366",
+		src_user.Nickname,
+		channel.Name,
+		"End of NAMES list")
+	session.Conn.Write([]byte(end_names_message))
+}
+
+func (session *Session) leaveChan(request string) {
+	if len(request) > 5 {
+		src := session.Account
+		matches := doRegexpSubmatch("PART (.*) :(.*)", request)
+		if len(matches) > 0 {
+			// if channel exists
+			channel, ok := session.Env.ChannelMap[matches[1]]
+			if ok == true {
+				// if user subscribed
+				user, ok := channel.UserMap[src.Nickname]
+				if ok == true {
+					// send messages
+					i := strings.Index(request[1:], ":")
+					msg := fmt.Sprintf(":%s!%s@%s PART %s :%s",
+						user.Nickname,
+						user.Nickname,
+						CONN_HOST,
+						channel.Name,
+						request[i+1:])
+					for _, user := range channel.UserList {
+						if user.Nickname != src.Nickname {
+							dst_conn := session.Env.ConnMap[user.Nickname]
+							dst_conn.Write([]byte(msg))
+						}
+					}
+					// leave chann
+
+				}
+			}
+		}
+	}
+}
+
+//value, ok := mapname["key"]

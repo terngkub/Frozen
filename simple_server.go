@@ -28,6 +28,7 @@ type Channel struct {
 	AdminList []*Account
 	UserList  []*Account
 	BanList   []*Account
+	UserMap   map[string]*Account
 }
 
 type Env struct {
@@ -36,6 +37,7 @@ type Env struct {
 	UserMap     map[string]*Account
 	NicknameMap map[string]*Account
 	ConnMap     map[string]net.Conn
+	ChannelMap  map[string]*Channel
 }
 
 type Session struct {
@@ -55,7 +57,8 @@ func main() {
 		ChannelList: []Channel{},
 		UserMap:     make(map[string]*Account),
 		NicknameMap: make(map[string]*Account),
-		ConnMap:     make(map[string]net.Conn)}
+		ConnMap:     make(map[string]net.Conn),
+		ChannelMap:  make(map[string]*Channel)}
 	fmt.Println("Listening on ", CONN_HOST+":"+CONN_PORT)
 	for {
 		conn, err := ln.Accept()
@@ -91,6 +94,8 @@ func (session *Session) handleRequest(request string) {
 		session.privateMSG(request)
 	case strings.Contains(request, "JOIN"):
 		session.joinChan(request)
+	case strings.Contains(request, "PART"):
+		session.leaveChan(request)
 	}
 }
 
