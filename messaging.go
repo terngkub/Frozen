@@ -158,7 +158,7 @@ func (session *Session) leaveChan(request string) {
 	if len(request) > 5 {
 		src := session.Account
 		matches := doRegexpSubmatch("PART (.*) :(.*)", request)
-		if len(matches) > 0 {
+		if len(matches) > 1 {
 			// if channel/user exists
 			channel, ok1 := session.Env.ChannelMap[matches[1]]
 			_, ok2 := channel.UserMap[src.Nickname]
