@@ -161,7 +161,7 @@ func (session *Session) leaveChan(request string) {
 		if len(matches) > 0 {
 			// if channel/user exists
 			channel, ok1 := session.Env.ChannelMap[matches[1]]
-			if ok1 {
+			if ok1 == true {
 				_, ok2 := channel.UserMap[src.Nickname]
 				if ok2 == true {
 					session.sendPart(request, src, channel)
