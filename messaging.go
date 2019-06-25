@@ -100,7 +100,7 @@ func (session *Session) createChannel(name string, topic string, key string) {
 		UserList:  []*Account{},
 		BanList:   []*Account{},
 		UserMap:   make(map[string]*Account)}
-	session.Env.ChannelList = append(session.Env.ChannelList, new_chan)
+	session.Env.ChannelList = append(session.Env.ChannelList, &new_chan)
 	session.Env.ChannelMap[name] = &new_chan
 	session.append_user(&new_chan)
 }
@@ -188,8 +188,17 @@ func (session *Session) sendPart(request string, src *Account, channel *Channel)
 	// leave chann
 	for i, user := range channel.UserList {
 		if user.Nickname == src.Nickname {
-			channel.UserList = remove(channel.UserList, i)
+			channel.UserList = remove_user(channel.UserList, i)
 			delete(channel.UserMap, user.Nickname)
+		}
+	}
+	// remove empty channel
+	if channel.UserList == nil {
+		for i, channel := range session.Env.ChannelList {
+			if channel.Name == channel.Name {
+				session.Env.ChannelList = remove_chan(session.Env.ChannelList, i)
+				delete(session.Env.ChannelMap, channel.Name)
+			}
 		}
 	}
 }

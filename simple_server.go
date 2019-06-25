@@ -33,8 +33,8 @@ type Channel struct {
 }
 
 type Env struct {
-	ChannelList []Channel
-	AccountList []Account
+	ChannelList []*Channel
+	AccountList []*Account
 	UserMap     map[string]*Account
 	NicknameMap map[string]*Account
 	ConnMap     map[string]net.Conn
@@ -54,8 +54,8 @@ func main() {
 		os.Exit(1)
 	}
 	defer ln.Close()
-	env := Env{AccountList: []Account{},
-		ChannelList: []Channel{},
+	env := Env{AccountList: []*Account{},
+		ChannelList: []*Channel{},
 		UserMap:     make(map[string]*Account),
 		NicknameMap: make(map[string]*Account),
 		ConnMap:     make(map[string]net.Conn),

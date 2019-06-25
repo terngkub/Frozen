@@ -142,12 +142,12 @@ func (session *Session) register(account *Account) bool {
 		session.error434(account.Nickname)
 		return false
 	}
-	session.Env.AccountList = append(session.Env.AccountList, *account)
+	session.Env.AccountList = append(session.Env.AccountList, account)
 	length := len(session.Env.AccountList)
 	last := &session.Env.AccountList[length-1]
-	session.Account = last
-	session.Env.UserMap[account.User] = last
-	session.Env.NicknameMap[account.Nickname] = last
+	session.Account = *last
+	session.Env.UserMap[account.User] = *last
+	session.Env.NicknameMap[account.Nickname] = *last
 	session.Env.ConnMap[account.Nickname] = session.Conn
 	log.Println("register success", session.Conn)
 	session.welcome()
